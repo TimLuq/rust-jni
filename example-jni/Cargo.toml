@@ -1,0 +1,10 @@
+[package]
+name = "example-jni"
+version = "0.1.0"
+authors = ["TimLuq <timluq+gitcommit@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+jni-macros = { path = "../jni-macros" }
+jni = "0.10"
+

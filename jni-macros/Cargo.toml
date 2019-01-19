@@ -1,0 +1,16 @@
+[package]
+name = "jni-macros"
+version = "0.1.0"
+authors = ["TimLuq <timluq+gitcommit@gmail.com>"]
+edition = "2018"
+
+[features]
+# The Java package prefixed to all Java classes and packages.
+base-java-package = []
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "^0.15.23", features = ["full"] }
+quote = "0.6"

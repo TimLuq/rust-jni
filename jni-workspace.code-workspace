@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "jni-macros"
+		},
+		{
+			"path": "jni-helpers"
+		},
+		{
+			"path": "example-jni"
+		}
+	],
+	"settings": {
+		"rust-client.channel": "nightly"
+	}
+}

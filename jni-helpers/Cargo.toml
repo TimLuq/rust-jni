@@ -1,0 +1,12 @@
+[package]
+name = "jni-helpers"
+version = "0.1.0"
+authors = ["TimLuq <timluq+gitcommit@gmail.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+lazy_static = "^1.2.0"
+jni-sys = "0.3"
