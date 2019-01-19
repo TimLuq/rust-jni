@@ -43,25 +43,24 @@ pub struct JavaObject<T: ?Sized>
 {
     item: RwLock<Option<Weak<T>>>,
     cchmthd: CacheMethod,
-    jobj: jni_sys::jobject,
-    jvm: jni_sys::JavaVM,
-    _phantom: std::marker::PhantomData<T>,
+    jobj: std::ptr::NonNull<jni_sys::_jobject>,
+    jvm: std::ptr::NonNull<jni_sys::JNIInvokeInterface_>,
+    // _phantom: std::marker::PhantomData<T>,
 }
 
-unsafe impl<T> Send for JavaObject<T>
-    where T: LocallyCachedJavaClass + Sized + Sync + Any,
-{
-
-}
+unsafe impl<T> std::marker::Send for JavaObject<T>
+    where T: LocallyCachedJavaClass { }
+unsafe impl<T> std::marker::Sync for JavaObject<T>
+    where T: LocallyCachedJavaClass { }
 
 impl<T: ?Sized> JavaObject<T>
 where 
     T: LocallyCachedJavaClass + Sync,
 {
-    pub fn java_object(&self) -> &jni_sys::jobject {
+    pub fn java_object(&self) -> &std::ptr::NonNull<jni_sys::_jobject> {
         &self.jobj
     }
-    pub fn java_vm(&self) -> &jni_sys::JavaVM {
+    pub fn java_vm(&self) -> &std::ptr::NonNull<jni_sys::JNIInvokeInterface_> {
         &self.jvm
     }
     pub fn cache_method(&self) -> &CacheMethod {
@@ -114,7 +113,7 @@ pub trait LocallyCachedJavaClass : JavaClass + Any + Send + Sized
             Self: Sized,
     {
         let j = obj.jobj;
-        <Self as JavaClass>::new(env, &(*obj).jobj)
+        <Self as JavaClass>::new(env, &j.as_ptr())
     }
 }
 
@@ -127,7 +126,7 @@ lazy_static! {
 
 /// must run on attached thread
 pub fn cache_java_object<T>(clss: &str, env: jni_sys::JNIEnv, obj: jni_sys::jobject) -> Result<Arc<T>, String> 
-    where T: LocallyCachedJavaClass + Any + Sized + Sync + Send,
+    where T: LocallyCachedJavaClass + Any + Sized + Send,
 {
     let m = T::cache_method();
 
@@ -169,19 +168,19 @@ pub fn cache_java_object<T>(clss: &str, env: jni_sys::JNIEnv, obj: jni_sys::jobj
                 if p.is_null() {
                     return Err("Empty result #1 when calling JNIEnv::GetJavaVM".to_string());
                 }
-                *p
+                (*p) as *mut jni_sys::JNIInvokeInterface_
             },
         }
     };
 
     // create item
-    let o = Arc::new(JavaObject {
+    let o = unsafe { Arc::new(JavaObject {
         item: RwLock::new(Option::None),
         cchmthd: m,
-        jobj: obj,
-        jvm,
-        _phantom: std::marker::PhantomData
-    });
+        jobj: std::ptr::NonNull::new_unchecked(obj),
+        jvm: std::ptr::NonNull::new_unchecked(jvm),
+        // _phantom: std::marker::PhantomData
+    }) };
 
     let mut w: std::sync::RwLockWriteGuard<Option<Weak<T>>> = (*o).item.write().unwrap();
 
@@ -191,11 +190,12 @@ pub fn cache_java_object<T>(clss: &str, env: jni_sys::JNIEnv, obj: jni_sys::jobj
     std::mem::drop(w);
 
     if reuse {
-        let wr = LOCAL_CACHE.write().unwrap();
+        let mut wr = LOCAL_CACHE.write().unwrap();
         match wr.get_mut(clss) { 
             Option::None => (),
             Option::Some(x) => {
-                x.insert(env as u64, Arc::downgrade(&(o as Arc<Any + std::marker::Send + std::marker::Sync>).clone()));
+                let v = (o as Arc<Any + std::marker::Send + std::marker::Sync>).clone();
+                x.insert(env as u64, Arc::downgrade(&v));
             },
         };
     }
